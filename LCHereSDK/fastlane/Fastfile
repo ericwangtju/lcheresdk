@@ -1,0 +1,60 @@
+lane :release_pod do |options|
+  target_version = options[:version]
+  is_swift = options[:swift]
+            #先验证versino是否输入
+      if !target_version 
+        UI.error "未传入version 或者version拼写错误"
+      return
+      end
+
+      
+      targeName = read_podspec['name']
+      
+      spec_path = "#{targeName}.podspec"
+
+      git_pull 
+      # 确认是 master 分支
+      # ensure_git_branch
+
+      sources = get_sources
+
+      # 本地验证 spec 文件
+
+      pod_lib_lint(use_bundle_exec: false, sources:sources, allow_warnings: true, use_libraries: !is_swift)
+
+
+      # 远程验证spec文件
+      # pod_spec_lint
+
+      #修改spec文件的version号
+      version_bump_podspec(path: spec_path, version_number: target_version)
+
+      # 添加到本地git
+      git_add_update
+
+      # 提交到本地git
+      git_commit_update
+
+      # 推荐到远程git
+      push_to_git_remote
+
+      # 检查对于 tag 是否已经存在
+      if git_tag_exists(tag: target_version)
+          # 删除对应 tag
+          remove_git_tag(tag: target_version)  #这个是自定义action
+      end
+      # 添加 tag
+      add_git_tag(tag: target_version)
+      # 提交 tag
+      push_git_tags
+
+      #上传本地私有库
+      specName = get_pod_repo_name  #这个是自定义action
+      pod_push(path: spec_path, repo: specName, sources:sources, allow_warnings: true, use_libraries: !is_swift)
+
+
+end
+
+
+
+
